@@ -2,62 +2,66 @@
 #include <iostream>
 #include <string>
 #include <vector>
-using namespace std;
 
 struct ExprNode {
     virtual ~ExprNode() = default;
-    virtual string toString() const = 0;
+    virtual std::string toString() const = 0;
 };
 
 struct ASTNode {
     virtual ~ASTNode() = default;
-    virtual void generateCode(ostream& out) const = 0;
+    virtual void generateCode(std::ostream& out) const = 0;
 };
 
 struct ProgramNode : ASTNode {
-    vector<ASTNode*> statements;
+    std::vector<ASTNode*> statements;
 
     ~ProgramNode() {
         for (auto stmt : statements) delete stmt;
     }
 
-    void generateCode(ostream& out) const override {
+    void generateCode(std::ostream& out) const override {
         for (auto stmt : statements)
             stmt->generateCode(out);
     }
 };
 
 struct InputNode : ASTNode {
-    string variableName;
+    std::string variableName;
+    InputNode(const std::string& var) : variableName(var) {}
 
-    void generateCode(ostream& out) const override {
-        out << "cin >> " << variableName << ";" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\tcin >> " << variableName << ";" << std::endl;
     }
 };
 
 struct OutputNode : ASTNode {
-    string value;
+    std::string value;
+    OutputNode(const std::string& val) : value(val) {}
 
-    void generateCode(ostream& out) const override {
-        out << "cout << " << value << ";" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\tcout << " << value << " << endl;" << std::endl;
     }
 };
 
 struct AssignNode : ASTNode {
-    string variableName;
+    std::string variableName;
     ExprNode* expr;
+    AssignNode(const std::string& var, ExprNode* e) : variableName(var), expr(e) {}
 
     ~AssignNode() { delete expr; }
 
-    void generateCode(ostream& out) const override {
-        out << variableName << " = " << expr->toString() << ";" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\t" << variableName << " = " << expr->toString() << ";" << std::endl;
     }
 };
 
 struct IfNode : ASTNode {
     ExprNode* condition;
-    vector<ASTNode*> trueBranch;
-    vector<ASTNode*> falseBranch;
+    std::vector<ASTNode*> trueBranch;
+    std::vector<ASTNode*> falseBranch;
+    IfNode(ExprNode* cond, const std::vector<ASTNode*>& t, const std::vector<ASTNode*>& f)
+            : condition(cond), trueBranch(t), falseBranch(f) {}
 
     ~IfNode() {
         delete condition;
@@ -65,87 +69,93 @@ struct IfNode : ASTNode {
         for (auto stmt : falseBranch) delete stmt;
     }
 
-    void generateCode(ostream& out) const override {
-        out << "if (" << condition->toString() << ") {" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\tif (" << condition->toString() << ") {" << std::endl;
         for (auto stmt : trueBranch) stmt->generateCode(out);
-        out << "}";
+        out << "\t}";
         if (!falseBranch.empty()) {
-            out << " else {" << endl;
+            out << " else {" << std::endl;
             for (auto stmt : falseBranch) stmt->generateCode(out);
-            out << "}";
+            out << "\t}";
         }
-        out << endl;
+        out << std::endl;
     }
 };
 
 struct WhileNode : ASTNode {
     ExprNode* condition;
-    vector<ASTNode*> body;
+    std::vector<ASTNode*> body;
+    WhileNode(ExprNode* cond, const std::vector<ASTNode*>& b) : condition(cond), body(b) {}
 
     ~WhileNode() {
         delete condition;
         for (auto stmt : body) delete stmt;
     }
 
-    void generateCode(ostream& out) const override {
-        out << "while (" << condition->toString() << ") {" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\twhile (" << condition->toString() << ") {" << std::endl;
         for (auto stmt : body) stmt->generateCode(out);
-        out << "}" << endl;
+        out << "\t}" << std::endl;
     }
 };
 
 struct ForNode : ASTNode {
-    string iterator;
-    string startExpr;
-    string endExpr;
-    string stepExpr;
-    vector<ASTNode*> body;
+    std::string iterator;
+    std::string startExpr;
+    std::string endExpr;
+    std::string stepExpr;
+    std::vector<ASTNode*> body;
+    ForNode(const std::string& it, const std::string& start, const std::string& end, const std::string& step, const std::vector<ASTNode*>& b)
+            : iterator(it), startExpr(start), endExpr(end), stepExpr(step), body(b) {}
 
     ~ForNode() {
         for (auto stmt : body) delete stmt;
     }
 
-    void generateCode(ostream& out) const override {
-        out << "for (int " << iterator << " = " << startExpr
+    void generateCode(std::ostream& out) const override {
+        out << "\tfor (int " << iterator << " = " << startExpr
             << "; " << iterator << " <= " << endExpr << "; "
-            << iterator << " += " << stepExpr << ") {" << endl;
+            << iterator << " += " << stepExpr << ") {" << std::endl;
         for (auto stmt : body) stmt->generateCode(out);
-        out << "}" << endl;
+        out << "\t}" << std::endl;
     }
 };
 
 struct RepeatUntilNode : ASTNode {
     ExprNode* condition;
-    vector<ASTNode*> body;
+    std::vector<ASTNode*> body;
+    RepeatUntilNode(ExprNode* cond, const std::vector<ASTNode*>& b) : condition(cond), body(b) {}
 
     ~RepeatUntilNode() {
         delete condition;
         for (auto stmt : body) delete stmt;
     }
 
-    void generateCode(ostream& out) const override {
-        out << "do {" << endl;
+    void generateCode(std::ostream& out) const override {
+        out << "\tdo {" << std::endl;
         for (auto stmt : body) stmt->generateCode(out);
-        out << "} while (!(" << condition->toString() << "));" << endl;
+        out << "} while (!(" << condition->toString() << "));" << std::endl;
     }
 };
 
 struct LiteralExpr : ExprNode {
-    string value;
-    string toString() const override { return value; }
+    std::string value;
+    LiteralExpr(const std::string& val) : value(val) {}
+    std::string toString() const override { return value; }
 };
 
 struct BinaryExpr : ExprNode {
-    string op;
+    std::string op;
     ExprNode* left;
     ExprNode* right;
+    BinaryExpr(const std::string& oper, ExprNode* l, ExprNode* r) : op(oper), left(l), right(r) {}
 
     ~BinaryExpr() {
         delete left;
         delete right;
     }
 
-    string toString() const override {
+    std::string toString() const override {
         return "(" + left->toString() + " " + op + " " + right->toString() + ")";
     }
 };

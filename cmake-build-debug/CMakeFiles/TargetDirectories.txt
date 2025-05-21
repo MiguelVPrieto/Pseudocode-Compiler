@@ -1,3 +1,0 @@
-C:/Users/migue/CLionProjects/pseudocode/cmake-build-debug/CMakeFiles/pseudocode.dir
-C:/Users/migue/CLionProjects/pseudocode/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/migue/CLionProjects/pseudocode/cmake-build-debug/CMakeFiles/rebuild_cache.dir

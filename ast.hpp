@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
+
+inline std::set<std::string> variables;
 
 struct ExprNode {
     virtual ~ExprNode() = default;
@@ -34,6 +37,10 @@ struct InputNode : ASTNode {
     InputNode(const std::string& var) : variableName(var) {}
 
     void generateCode(std::ostream& out) const override {
+        if (variables.find(variableName) == variables.end()) {
+            out << "\tstring " << variableName << ";" << std::endl;
+            variables.insert(variableName);
+        }
         out << "\tcin >> " << variableName << ";" << std::endl;
     }
 };
@@ -61,6 +68,7 @@ struct AssignNode : ASTNode {
     ~AssignNode() { delete expr; }
 
     void generateCode(std::ostream& out) const override {
+        variables.insert(variableName);
         out << "\t" << type << " " << variableName << " = " << expr->toString() << ";" << std::endl;
     }
 };

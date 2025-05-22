@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include "lexer.hpp"
 #include "parser.hpp"
 
@@ -28,13 +29,23 @@ int main(int argc, char* argv[]) {
 
         freopen("output.cpp", "w", stdout);
 
-        std::cout << "#include <iostream>\n";
+        std::cout << "#include <bits/stdc++.h>\n";
         std::cout << "using namespace std;\n\n";
         std::cout << "int main() {\n";
         ast->generateCode(std::cout);
         std::cout << "}\n";
 
+        fclose(stdout);
+
         delete ast;
+
+        int result = system("g++ output.cpp -o output.exe");
+        if (result != 0) {
+            std::cerr << "Error: C++ code compilation failed" << std::endl;
+            return 2;
+        } else {
+            std::cout << "Code compiled succesfully: output.exe created." << std::endl;
+        }
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

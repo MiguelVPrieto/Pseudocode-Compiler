@@ -25,20 +25,18 @@ int main(int argc, char* argv[]) {
     Parser parser(tokens);
     try {
         ProgramNode* ast = parser.parseProgram();
+
         freopen("output.cpp", "w", stdout);
 
-        std::cout << "#include <bits/stdc++.h>" << std::endl;
-        std::cout << "using namespace std;" << std::endl << std::endl;
-        std::cout << "#define endl '\\n'" << std::endl << std::endl;
-        std::cout << "int main() {" << std::endl;
-        std::cout << "\tios_base::sync_with_stdio(false);" << std::endl << std::endl;
-        std::cout << "\tcin.tie(nullptr);" << std::endl << std::endl;
+        std::cout << "#include <iostream>\n";
+        std::cout << "using namespace std;\n\n";
+        std::cout << "int main() {\n";
         ast->generateCode(std::cout);
-        std::cout << "}" << std::endl;
+        std::cout << "}\n";
 
         delete ast;
     } catch (const std::exception& e) {
-        std::cerr << "Erro de parsing: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
 }

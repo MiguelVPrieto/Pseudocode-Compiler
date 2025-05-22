@@ -1,7 +1,9 @@
 #pragma once
+#include "lexer.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 
 struct ExprNode {
     virtual ~ExprNode() = default;
@@ -15,6 +17,7 @@ struct ASTNode {
 
 struct ProgramNode : ASTNode {
     std::vector<ASTNode*> statements;
+    std::map<std::string, std::string> varTypes;
 
     ~ProgramNode() {
         for (auto stmt : statements) delete stmt;
@@ -37,22 +40,28 @@ struct InputNode : ASTNode {
 
 struct OutputNode : ASTNode {
     std::string value;
-    OutputNode(const std::string& val) : value(val) {}
+    TokenType type;
+    OutputNode(const std::string& val, TokenType t) : value(val), type(t) {}
 
     void generateCode(std::ostream& out) const override {
-        out << "\tcout << " << value << " << endl;" << std::endl;
+        if (type == STRING) {
+            out << "\tcout << " << "\"" << value << "\"" << " << endl;" << std::endl;
+        } else {
+            out << "\tcout << " << value << " << endl;" << std::endl;
+        }
     }
 };
 
 struct AssignNode : ASTNode {
     std::string variableName;
     ExprNode* expr;
-    AssignNode(const std::string& var, ExprNode* e) : variableName(var), expr(e) {}
+    std::string type;
+    AssignNode(const std::string& var, ExprNode* e, const std::string& t) : variableName(var), expr(e), type(t) {}
 
     ~AssignNode() { delete expr; }
 
     void generateCode(std::ostream& out) const override {
-        out << "\t" << variableName << " = " << expr->toString() << ";" << std::endl;
+        out << "\t" << type << " " << variableName << " = " << expr->toString() << ";" << std::endl;
     }
 };
 
@@ -140,8 +149,12 @@ struct RepeatUntilNode : ASTNode {
 
 struct LiteralExpr : ExprNode {
     std::string value;
-    LiteralExpr(const std::string& val) : value(val) {}
-    std::string toString() const override { return value; }
+    TokenType type;
+    LiteralExpr(const std::string& val, TokenType t) : value(val), type(t) {}
+    std::string toString() const override {
+        if (type == STRING) return "\"" + value + "\"";
+        return value;
+    }
 };
 
 struct BinaryExpr : ExprNode {

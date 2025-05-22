@@ -1,2 +1,3 @@
-x <- 10
+x <- 0
+INPUT x
 OUTPUT x

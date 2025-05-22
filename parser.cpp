@@ -25,7 +25,7 @@ Token Parser::expect(TokenType type, const std::string& errorMsg) {
 
 ExprNode* Parser::parseLiteral() {
     Token token = advance();
-    return new LiteralExpr(token.value);
+    return new LiteralExpr(token.value, token.type);
 }
 
 ExprNode* Parser::parseExpression() {
@@ -45,15 +45,29 @@ ASTNode* Parser::parseStatement() {
 
     if (current.type == OUTPUT) {
         advance();
-        Token value = expect(IDENTIFIER, "Expected identifier after OUTPUT");
-        return new OutputNode(value.value);
+        Token next = peek();
+        if (next.type == STRING) {
+            Token str = advance();
+            return new OutputNode(str.value, str.type);
+        } else if (next.type == IDENTIFIER) {
+            Token str = advance();
+            return new OutputNode(str.value, str.type);
+        } else {
+            throw std::runtime_error("Unexpected token after OUTPUT");
+        }
     }
 
     if (current.type == IDENTIFIER && pos + 1 < tokens.size() && tokens[pos + 1].type == ASSIGN) {
         std::string varName = advance().value;
         advance();
         ExprNode* expr = parseExpression();
-        return new AssignNode(varName, expr);
+
+        std::string type = "auto";
+        if (tokens[pos-1].type == STRING) type = "string";
+        else if (tokens[pos-1].type == NUMBER) type = "int";
+
+
+        return new AssignNode(varName, expr, type);
     }
 
     if (current.type == IF) {

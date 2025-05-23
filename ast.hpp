@@ -7,10 +7,12 @@
 #include <set>
 
 inline std::set<std::string> variables;
+inline std::set<std::string> stringVars;
 
 struct ExprNode {
     virtual ~ExprNode() = default;
     virtual std::string toString() const = 0;
+    virtual void generateCode(std::ostream& out) const = 0;
 };
 
 struct ASTNode {
@@ -40,6 +42,7 @@ struct InputNode : ASTNode {
         if (variables.find(variableName) == variables.end()) {
             out << "\tstring " << variableName << ";" << std::endl;
             variables.insert(variableName);
+            stringVars.insert(variableName);
         }
         out << "\tcin >> " << variableName << ";" << std::endl;
     }
@@ -68,34 +71,45 @@ struct AssignNode : ASTNode {
     ~AssignNode() { delete expr; }
 
     void generateCode(std::ostream& out) const override {
-        variables.insert(variableName);
-        out << "\t" << type << " " << variableName << " = " << expr->toString() << ";" << std::endl;
+        if (variables.find(variableName) == variables.end()) {
+            out << "\t" << type << " " << variableName << " = ";
+            if (type == "STRING") {
+                stringVars.insert(variableName);
+            }
+            variables.insert(variableName);
+        } else {
+            out << "\t" << variableName << " = ";
+        }
+        expr->generateCode(out);
+        out << ";" << std::endl;
     }
 };
 
-struct IfNode : ASTNode {
+struct IfNode : public ASTNode {
     ExprNode* condition;
-    std::vector<ASTNode*> trueBranch;
-    std::vector<ASTNode*> falseBranch;
-    IfNode(ExprNode* cond, const std::vector<ASTNode*>& t, const std::vector<ASTNode*>& f)
-            : condition(cond), trueBranch(t), falseBranch(f) {}
+    std::vector<ASTNode*> thenBranch;
+    std::vector<ASTNode*> elseBranch;
+    IfNode(ExprNode* cond, const std::vector<ASTNode*>& thenB, const std::vector<ASTNode*>& elseB)
+            : condition(cond), thenBranch(std::move(thenB)), elseBranch(std::move(elseB)) {}
 
     ~IfNode() {
         delete condition;
-        for (auto stmt : trueBranch) delete stmt;
-        for (auto stmt : falseBranch) delete stmt;
+        for (auto stmt : thenBranch) delete stmt;
+        for (auto stmt : elseBranch) delete stmt;
     }
 
     void generateCode(std::ostream& out) const override {
-        out << "\tif (" << condition->toString() << ") {" << std::endl;
-        for (auto stmt : trueBranch) stmt->generateCode(out);
+        out << "\tif (";
+        condition->generateCode(out);
+        out << ") {\n";
+        for (auto stmt : thenBranch) stmt->generateCode(out);
         out << "\t}";
-        if (!falseBranch.empty()) {
-            out << " else {" << std::endl;
-            for (auto stmt : falseBranch) stmt->generateCode(out);
+        if (!elseBranch.empty()) {
+            out << " else {\n";
+            for (auto stmt : elseBranch) stmt->generateCode(out);
             out << "\t}";
         }
-        out << std::endl;
+        out << "\n";
     }
 };
 
@@ -131,8 +145,13 @@ struct ForNode : ASTNode {
 
     void generateCode(std::ostream& out) const override {
         out << "\tfor (int " << iterator << " = " << startExpr
-            << "; " << iterator << " <= " << endExpr << "; "
-            << iterator << " += " << stepExpr << ") {" << std::endl;
+            << "; " << iterator << " <= ";
+        if (stringVars.find(endExpr) != stringVars.end()) {
+            out << "stoi(" << endExpr << ")";
+        } else {
+            out << endExpr;
+        }
+        out << "; " << iterator << " += " << stepExpr << ") {" << std::endl;
         for (auto stmt : body) stmt->generateCode(out);
         out << "\t}" << std::endl;
     }
@@ -163,6 +182,17 @@ struct LiteralExpr : ExprNode {
         if (type == STRING) return "\"" + value + "\"";
         return value;
     }
+    void generateCode(std::ostream& out) const override {
+        if (type == STRING) out << "\"" << value << "\"";
+        else out << value;
+    }
+};
+
+struct VariableExpr : ExprNode {
+    std::string name;
+    VariableExpr(const std::string& n) : name(n) {}
+    std::string toString() const override { return name; }
+    void generateCode(std::ostream& out) const override { out << name; }
 };
 
 struct BinaryExpr : ExprNode {
@@ -178,5 +208,23 @@ struct BinaryExpr : ExprNode {
 
     std::string toString() const override {
         return "(" + left->toString() + " " + op + " " + right->toString() + ")";
+    }
+    void generateCode(std::ostream& out) const override {
+        out << "(";
+        auto genOperand = [&](ExprNode* expr) {
+            auto varExpr = dynamic_cast<VariableExpr*>(expr);
+            if (varExpr && stringVars.find(varExpr->name) != stringVars.end()) {
+                out << "stoi(";
+                expr->generateCode(out);
+                out << ")";
+            } else {
+                expr->generateCode(out);
+            }
+        };
+        genOperand(left);
+        if (op == "=") out << " == ";
+        else out << " " << op << " ";
+        genOperand(right);
+        out << ")";
     }
 };

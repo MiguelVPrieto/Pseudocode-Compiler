@@ -15,6 +15,10 @@ public:
     Token expect(TokenType type, const std::string& errorMsg);
     ExprNode* parseLiteral();
     ExprNode* parseExpression();
+    ExprNode* parsePrimary();
+    ASTNode* parseIf();
+    int getPrecedence(const std::string& op);
+    ExprNode* parseBinaryOpRHS(int exprPrec, ExprNode* lhs);
     ASTNode* parseStatement();
     ProgramNode* parseProgram();
 };

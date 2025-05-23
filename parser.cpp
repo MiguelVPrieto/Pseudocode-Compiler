@@ -25,17 +25,74 @@ Token Parser::expect(TokenType type, const std::string& errorMsg) {
 
 ExprNode* Parser::parseLiteral() {
     Token token = advance();
+    if (token.type == IDENTIFIER) return new VariableExpr(token.value);
     return new LiteralExpr(token.value, token.type);
 }
 
+ExprNode* Parser::parsePrimary() {
+    if (peek().type == NUMBER || peek().type == STRING || peek().type == IDENTIFIER) return parseLiteral();
+    throw std::runtime_error("Expected primary expression");
+}
+
+int Parser::getPrecedence(const std::string& op) {
+    if (op == "+" || op == "-") return 1;
+    if (op == "*" || op == "/") return 2;
+    return 0;
+}
+
+ExprNode* Parser::parseBinaryOpRHS(int exprPrec, ExprNode* lhs) {
+    while (true) {
+        Token token = peek();
+        if (token.type != OPERATOR) break;
+        int prec = getPrecedence(token.value);
+        if (prec < exprPrec) break;
+
+        advance();
+        ExprNode* rhs = parsePrimary();
+
+        Token next = peek();
+        if (next.type == OPERATOR) {
+            int nextPrec = getPrecedence(next.value);
+            if (prec < nextPrec) {
+                rhs = parseBinaryOpRHS(prec + 1, rhs);
+            }
+        }
+        lhs = new BinaryExpr(token.value, lhs, rhs);
+    }
+    return lhs;
+}
+
+ASTNode* Parser::parseIf() {
+    advance();
+    ExprNode* cond = parseExpression();
+    expect(THEN, "Expected THEN after IF condition");
+
+    std::vector<ASTNode*> thenBranch;
+    while (peek().type != ELSE && peek().type != ENDIF && pos < tokens.size()) {
+        thenBranch.push_back(parseStatement());
+    }
+
+    std::vector<ASTNode*> elseBranch;
+    if (peek().type == ELSE) {
+        advance(); // consome ELSE
+        while (peek().type != ENDIF && pos < tokens.size()) {
+            elseBranch.push_back(parseStatement());
+        }
+    }
+    expect(ENDIF, "Expected ENDIF after IF block");
+
+    return new IfNode(cond, thenBranch, elseBranch);
+}
+
 ExprNode* Parser::parseExpression() {
-    if (peek().type == NUMBER || peek().type == STRING || peek().type == IDENTIFIER)
-        return parseLiteral();
-    throw std::runtime_error("Expected expression");
+    ExprNode* lhs = parsePrimary();
+    return parseBinaryOpRHS(0, lhs);
 }
 
 ASTNode* Parser::parseStatement() {
     Token current = peek();
+
+    if (current.type == IF) return parseIf();
 
     if (current.type == INPUT) {
         advance();
@@ -121,7 +178,9 @@ ASTNode* Parser::parseStatement() {
         expect(ASSIGN, "Expected ← after loop variable");
         std::string start = expect(NUMBER, "Expected start value").value;
         expect(TO, "Expected TO after start value");
-        std::string end = expect(NUMBER, "Expected end value").value;
+        Token endToken = expect(IDENTIFIER, "Expected end value");
+        if (endToken.type != NUMBER && endToken.type != IDENTIFIER) throw std::runtime_error("Expected end value");
+        std::string end = endToken.value;
 
         std::string step = "1";
         std::vector<ASTNode*> body;

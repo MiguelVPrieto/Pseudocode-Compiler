@@ -74,7 +74,7 @@ ASTNode* Parser::parseIf() {
 
     std::vector<ASTNode*> elseBranch;
     if (peek().type == ELSE) {
-        advance(); // consome ELSE
+        advance();
         while (peek().type != ENDIF && pos < tokens.size()) {
             elseBranch.push_back(parseStatement());
         }

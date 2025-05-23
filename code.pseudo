@@ -1,8 +1,5 @@
 INPUT x
-IF x = 10 THEN
-    FOR i <- 0 TO x
-        OUTPUT "x is 10"
-    NEXT
-ELSE
-    OUTPUT "x is not 10"
-ENDIF
+WHILE x < 10
+    OUTPUT x
+    x <- x + 1
+ENDWHILE

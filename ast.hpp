@@ -20,6 +20,27 @@ struct ASTNode {
     virtual void generateCode(std::ostream& out) const = 0;
 };
 
+struct VariableExpr : ExprNode {
+    std::string name;
+    VariableExpr(const std::string& n) : name(n) {}
+    std::string toString() const override { return name; }
+    void generateCode(std::ostream& out) const override { out << name; }
+};
+
+struct LiteralExpr : ExprNode {
+    std::string value;
+    TokenType type;
+    LiteralExpr(const std::string& val, TokenType t) : value(val), type(t) {}
+    std::string toString() const override {
+        if (type == STRING) return "\"" + value + "\"";
+        return value;
+    }
+    void generateCode(std::ostream& out) const override {
+        if (type == STRING) out << "\"" << value << "\"";
+        else out << value;
+    }
+};
+
 struct ProgramNode : ASTNode {
     std::vector<ASTNode*> statements;
     std::map<std::string, std::string> varTypes;
@@ -80,7 +101,14 @@ struct AssignNode : ASTNode {
         } else {
             out << "\t" << variableName << " = ";
         }
-        expr->generateCode(out);
+        auto litExpr = dynamic_cast<LiteralExpr*>(expr);
+        if ((type == "STRING" || type == "string") && litExpr && litExpr->type == NUMBER) {
+            out << "to_string(";
+            expr->generateCode(out);
+            out << ")";
+        } else {
+            expr->generateCode(out);
+        }
         out << ";" << std::endl;
     }
 };
@@ -124,7 +152,9 @@ struct WhileNode : ASTNode {
     }
 
     void generateCode(std::ostream& out) const override {
-        out << "\twhile (" << condition->toString() << ") {" << std::endl;
+        out << "\twhile (";
+        condition->generateCode(out);
+        out << ") {" << std::endl;
         for (auto stmt : body) stmt->generateCode(out);
         out << "\t}" << std::endl;
     }
@@ -172,27 +202,6 @@ struct RepeatUntilNode : ASTNode {
         for (auto stmt : body) stmt->generateCode(out);
         out << "} while (!(" << condition->toString() << "));" << std::endl;
     }
-};
-
-struct LiteralExpr : ExprNode {
-    std::string value;
-    TokenType type;
-    LiteralExpr(const std::string& val, TokenType t) : value(val), type(t) {}
-    std::string toString() const override {
-        if (type == STRING) return "\"" + value + "\"";
-        return value;
-    }
-    void generateCode(std::ostream& out) const override {
-        if (type == STRING) out << "\"" << value << "\"";
-        else out << value;
-    }
-};
-
-struct VariableExpr : ExprNode {
-    std::string name;
-    VariableExpr(const std::string& n) : name(n) {}
-    std::string toString() const override { return name; }
-    void generateCode(std::ostream& out) const override { out << name; }
 };
 
 struct BinaryExpr : ExprNode {

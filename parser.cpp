@@ -30,13 +30,22 @@ ExprNode* Parser::parseLiteral() {
 }
 
 ExprNode* Parser::parsePrimary() {
-    if (peek().type == NUMBER || peek().type == STRING || peek().type == IDENTIFIER) return parseLiteral();
+    if (peek().type == NUMBER || peek().type == STRING || peek().type == IDENTIFIER) {
+        ExprNode* expr = parseLiteral();
+        while (peek().type == LPAREN && peek().value == "[") {
+            advance();
+            ExprNode* idx = parseExpression();
+            expect(RPAREN, "Expected ] after index");
+            expr = new IndexExpr(expr, idx);
+        }
+        return expr;
+    }
     throw std::runtime_error("Expected primary expression");
 }
 
 int Parser::getPrecedence(const std::string& op) {
     if (op == "+" || op == "-") return 1;
-    if (op == "*" || op == "/") return 2;
+    if (op == "*" || op == "/" || op == "%") return 2;
     return 0;
 }
 
@@ -102,16 +111,8 @@ ASTNode* Parser::parseStatement() {
 
     if (current.type == OUTPUT) {
         advance();
-        Token next = peek();
-        if (next.type == STRING) {
-            Token str = advance();
-            return new OutputNode(str.value, str.type);
-        } else if (next.type == IDENTIFIER) {
-            Token str = advance();
-            return new OutputNode(str.value, str.type);
-        } else {
-            throw std::runtime_error("Unexpected token after OUTPUT");
-        }
+        ExprNode* expr = parseExpression();
+        return new OutputExprNode(expr);
     }
 
     if (current.type == IDENTIFIER && pos + 1 < tokens.size() && tokens[pos + 1].type == ASSIGN) {

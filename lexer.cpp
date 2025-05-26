@@ -34,6 +34,18 @@ std::vector<Token> tokenize(const std::string& code) {
             continue;
         }
 
+        if (c == '[') {
+            tokens.push_back({LPAREN, "["});
+            pos++;
+            continue;
+        }
+
+        if (c == ']') {
+            tokens.push_back({RPAREN, "]"});
+            pos++;
+            continue;
+        }
+
         if (isalpha(c)) {
             size_t start = pos;
             while (pos < code.length() && (isalnum(code[pos]) || code[pos] == '_')) pos++;
@@ -76,7 +88,7 @@ std::vector<Token> tokenize(const std::string& code) {
             }
         }
 
-        if (std::string("+-*/=<>():,").find(c) != std::string::npos) {
+        if (std::string("+-*/=<>%():,").find(c) != std::string::npos) {
             TokenType type = OPERATOR;
             if (c == '(') type = LPAREN;
             else if (c == ')') type = RPAREN;

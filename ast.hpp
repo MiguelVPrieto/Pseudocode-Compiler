@@ -83,6 +83,90 @@ struct OutputNode : ASTNode {
     }
 };
 
+struct BinaryExpr : ExprNode {
+    std::string op;
+    ExprNode* left;
+    ExprNode* right;
+    BinaryExpr(const std::string& oper, ExprNode* l, ExprNode* r) : op(oper), left(l), right(r) {}
+
+    ~BinaryExpr() {
+        delete left;
+        delete right;
+    }
+
+    std::string toString() const override {
+        return "(" + left->toString() + " " + op + " " + right->toString() + ")";
+    }
+    void generateCode(std::ostream& out) const override {
+        bool isComparison = (op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=");
+        auto leftVar = dynamic_cast<VariableExpr*>(left);
+        auto rightVar = dynamic_cast<VariableExpr*>(right);
+        bool leftIsString = leftVar && stringVars.find(leftVar->name) != stringVars.end();
+        bool rightIsString = rightVar && stringVars.find(rightVar->name) != stringVars.end();
+
+        if (isComparison) {
+            out << "(";
+            if (leftIsString) {
+                out << "stoi(";
+                left->generateCode(out);
+                out << ")";
+            } else {
+                left->generateCode(out);
+            }
+            out << " " << op << " ";
+            if (rightIsString) {
+                out << "stoi(";
+                right->generateCode(out);
+                out << ")";
+            } else {
+                right->generateCode(out);
+            }
+            out << ")";
+            return;
+        } else if (op == "%" && (leftIsString || rightIsString)) {
+            out << "(";
+            if (leftIsString) {
+                out << "stoi(";
+                left->generateCode(out);
+                out << ")";
+            } else {
+                left->generateCode(out);
+            }
+            out << " % ";
+            if (rightIsString) {
+                out << "stoi(";
+                right->generateCode(out);
+                out << ")";
+            } else {
+                right->generateCode(out);
+            }
+            out << ")";
+        } else if (op == "+" && (leftIsString || rightIsString)) {
+            if (leftIsString && !rightIsString) {
+                left->generateCode(out);
+                out << " + to_string(";
+                right->generateCode(out);
+                out << ")";
+            } else if (!leftIsString && rightIsString) {
+                out << "to_string(";
+                left->generateCode(out);
+                out << ") + ";
+                right->generateCode(out);
+            } else {
+                left->generateCode(out);
+                out << " + ";
+                right->generateCode(out);
+            }
+        } else {
+            out << "(";
+            left->generateCode(out);
+            out << " " << op << " ";
+            right->generateCode(out);
+            out << ")";
+        }
+    }
+};
+
 struct AssignNode : ASTNode {
     std::string variableName;
     ExprNode* expr;
@@ -101,7 +185,17 @@ struct AssignNode : ASTNode {
         } else {
             out << "\t" << variableName << " = ";
         }
-        if ((type == "STRING" || type == "string" || stringVars.find(variableName) != stringVars.end())) {
+
+        bool isStringVar = (type == "STRING" || type == "string") || stringVars.find(variableName) != stringVars.end();
+        auto binExpr = dynamic_cast<BinaryExpr*>(expr);
+        auto leftVar = binExpr ? dynamic_cast<VariableExpr*>(binExpr->left) : nullptr;
+        auto rightLit = binExpr ? dynamic_cast<LiteralExpr*>(binExpr->right) : nullptr;
+
+        if (isStringVar && binExpr && leftVar && leftVar->name == variableName && rightLit && rightLit->type == NUMBER) {
+            out << "to_string(stoi(" << variableName << ") " << binExpr->op << " ";
+            binExpr->right->generateCode(out);
+            out << ")";
+        } else if (isStringVar && binExpr && binExpr->op != "+") {
             out << "to_string(";
             expr->generateCode(out);
             out << ")";
@@ -203,36 +297,36 @@ struct RepeatUntilNode : ASTNode {
     }
 };
 
-struct BinaryExpr : ExprNode {
-    std::string op;
-    ExprNode* left;
-    ExprNode* right;
-    BinaryExpr(const std::string& oper, ExprNode* l, ExprNode* r) : op(oper), left(l), right(r) {}
-
-    ~BinaryExpr() {
-        delete left;
-        delete right;
-    }
-
+struct IndexExpr : ExprNode {
+    ExprNode* base;
+    ExprNode* index;
+    IndexExpr(ExprNode* b, ExprNode* i) : base(b), index(i) {}
+    ~IndexExpr() { delete base; delete index; }
     std::string toString() const override {
-        return "(" + left->toString() + " " + op + " " + right->toString() + ")";
+        return base->toString() + "[" + index->toString() + "]";
     }
     void generateCode(std::ostream& out) const override {
-        out << "(";
-        auto genOperand = [&](ExprNode* expr) {
-            auto varExpr = dynamic_cast<VariableExpr*>(expr);
-            if (varExpr && stringVars.find(varExpr->name) != stringVars.end()) {
-                out << "stoi(";
-                expr->generateCode(out);
-                out << ")";
-            } else {
-                expr->generateCode(out);
-            }
-        };
-        genOperand(left);
-        if (op == "=") out << " == ";
-        else out << " " << op << " ";
-        genOperand(right);
-        out << ")";
+        base->generateCode(out);
+        out << "[";
+        auto varExpr = dynamic_cast<VariableExpr*>(index);
+        if (varExpr && stringVars.find(varExpr->name) != stringVars.end()) {
+            out << "stoi(";
+            index->generateCode(out);
+            out << ")";
+        } else {
+            index->generateCode(out);
+        }
+        out << "]";
+    }
+};
+
+struct OutputExprNode : ASTNode {
+    ExprNode* expr;
+    OutputExprNode(ExprNode* e) : expr(e) {}
+    ~OutputExprNode() { delete expr; }
+    void generateCode(std::ostream& out) const override {
+        out << "\tcout << ";
+        expr->generateCode(out);
+        out << " << endl;" << std::endl;
     }
 };

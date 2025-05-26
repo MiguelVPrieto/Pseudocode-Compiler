@@ -1,5 +1,2 @@
 INPUT x
-WHILE x < 10
-    OUTPUT x
-    x <- x + 1
-ENDWHILE
+OUTPUT x%10

@@ -94,15 +94,14 @@ struct AssignNode : ASTNode {
     void generateCode(std::ostream& out) const override {
         if (variables.find(variableName) == variables.end()) {
             out << "\t" << type << " " << variableName << " = ";
-            if (type == "STRING") {
+            if (type == "STRING" || type == "string") {
                 stringVars.insert(variableName);
             }
             variables.insert(variableName);
         } else {
             out << "\t" << variableName << " = ";
         }
-        auto litExpr = dynamic_cast<LiteralExpr*>(expr);
-        if ((type == "STRING" || type == "string") && litExpr && litExpr->type == NUMBER) {
+        if ((type == "STRING" || type == "string" || stringVars.find(variableName) != stringVars.end())) {
             out << "to_string(";
             expr->generateCode(out);
             out << ")";
